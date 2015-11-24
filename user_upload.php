@@ -113,9 +113,24 @@ if (!empty($table)) {
 }
 
 //iterating through CSV file
-$data = [];
-foreach (file("csv_file") as $line) {
+
+if (($handle = fopen("$csv_file", "r")) !== FALSE) {
+    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+        $num = count($data);
+        for ($c=0; $c < $num; $c++) {
+            echo trim($data[$c]) . ",";
+        }
+	echo PHP_EOL;
+    }
+    fclose($handle);
+}
+
+/*
+foreach (file("$csv_file") as $line) {
+	//obtaining 
 	$data[] = str_getcsv($line);
+	echo $data[0][0], PHP_EOL;
+
         //open connection to db
         $conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password);
         //check connection
@@ -123,10 +138,12 @@ foreach (file("csv_file") as $line) {
                 die("Connection failed: " . mysqli_connect_error() . PHP_EOL);
         }
         echo "Connected successfully" . PHP_EOL;
-	
-	$firstName = ucfirst($data[o])
-	
-	}
 
+	//retrieve 
+	echo $firstName = ucfirst($data[0]), PHP_EOL,
+		$lastName = ucfirst($data[1]), PHP_EOL,
+		$email = strtolower($data[2]), PHP_EOL;
+}
+*/
  
 ?>
