@@ -74,5 +74,59 @@ echo "Using input file: ", empty($csv_file) ? "No" : $csv_file, PHP_EOL,
 	"MySQL DB username: ", empty($mysql_user) ? "Not specified" : $mysql_user, PHP_EOL,
 	"MySQL user password: ", empty($mysql_user_password) ? "Not specified" : $mysql_user_password, PHP_EOL,
 	"MySQL DB host: ", empty($mysql_host) ? "Not specified" : $mysql_host, PHP_EOL;
+
+//Create/Re-create table if option --create_table is specified
+if (!empty($table)) {
+	//open connection
+	$conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password);
+	//check connection
+	if (!$conn) {
+		die("Connection failed: " . mysqli_connect_error() . PHP_EOL);
+	}	
+	echo "Connected successfully" . PHP_EOL;
+	//create db if it doesn't exist
+	$create_db_sql = "CREATE DATABASE IF NOT EXISTS Catalog;";
+	if (mysqli_query($conn, $create_db_sql)) {
+		echo "Database created successfully" . PHP_EOL;
+	} else {
+		echo "Error creating database: " . $mysqli_error($conn) . PHP_EOL;
+	}
+	mysqli_select_db($conn, "Catalog");	
+	// drop table users if it exists
+        if (mysqli_query($conn, "DROP TABLE IF EXISTS users")) {
+                echo "Table users exists. Dropping." . PHP_EOL;
+        } else {
+                echo "Error creating table: " . mysqli_error($conn) . PHP_EOL;
+        }
+	// create table users
+	$create_table_sql = "CREATE TABLE users (
+		firstname VARCHAR(30) NOT NULL,
+		lastname VARCHAR(30) NOT NULL,
+		email VARCHAR(50)
+	)";
+	if (mysqli_query($conn, $create_table_sql)) {
+    		echo "Table users created successfully" . PHP_EOL;
+	} else {
+		echo "Error creating table: " . mysqli_error($conn) . PHP_EOL;
+	}
+	mysqli_close();
+}
+
+//iterating through CSV file
+$data = [];
+foreach (file("csv_file") as $line) {
+	$data[] = str_getcsv($line);
+        //open connection to db
+        $conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password);
+        //check connection
+        if (!$conn) {
+                die("Connection failed: " . mysqli_connect_error() . PHP_EOL);
+        }
+        echo "Connected successfully" . PHP_EOL;
+	
+	$firstName = ucfirst($data[o])
+	
+	}
+
  
 ?>
