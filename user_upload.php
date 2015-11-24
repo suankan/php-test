@@ -23,6 +23,42 @@ Command line options:
  --help – which will output the above list of directives with details.
 */
 
+require_once 'vendor/autoload.php';
+
+$cmd_options = new Commando\Command();
+
+// Define option "--file"
+$cmd_options->option('file')
+    ->require()
+    ->file()
+    ->describedAs('Input file with CSV data to be parced');
+
+// Define option "--create_table"
+$cmd_options->option('create_table')
+    ->describedAs('Instructs to create table in MySQL DB with name as <argument>');
+
+// Define option "--dry_run"
+$cmd_options->flag('dry_run')
+	->boolean()
+	->describedAs('No data will be added to DB. All other functions will be executed');
+
+// Define option "u"
+$cmd_options->option('u')
+	->needs('p', 'h')
+	->describedAs('MySQL username');
+
+// Define option "-p"
+$cmd_options->option('p')
+	->needs('u', 'h')
+        ->describedAs('Password of MySQL user');
+
+// Define option "-h"
+$cmd_options->option('h')
+	->needs('u', 'p')
+        ->describedAs('MySQL hostname or IP');
+
+// No definition for option "--help" is required because Composer already implements it
+
+echo "Using input file: ", $filename = $cmd_options['file'], PHP_EOL;
 
 ?>
-#test line
