@@ -29,15 +29,16 @@ $cmd_options = new Commando\Command();
 
 // Define option "--file"
 $cmd_options->option('file')
-    ->require()
     ->file()
     ->describedAs('Input file with CSV data to be parced');
 
-// Define option "--create_table"
-$cmd_options->option('create_table')
-    ->describedAs('Instructs to create table in MySQL DB with name as <argument>');
+// Define flag "--create_table"
+$cmd_options->flag('create_table')
+    ->boolean()
+    ->needs('u', 'p', 'h')
+    ->describedAs('Instructs to create table in MySQL DB with name "users"');
 
-// Define option "--dry_run"
+// Define flag "--dry_run"
 $cmd_options->flag('dry_run')
 	->boolean()
 	->describedAs('No data will be added to DB. All other functions will be executed');
@@ -59,6 +60,19 @@ $cmd_options->option('h')
 
 // No definition for option "--help" is required because Composer already implements it
 
-echo "Using input file: ", $filename = $cmd_options['file'], PHP_EOL;
+$csv_file = $cmd_options['file'];
+$table = $cmd_options['create_table'] ? "users" : "";  
+$dry = $cmd_options['dry_run'];
+$mysql_user = $cmd_options['u'];
+$mysql_user_password = $cmd_options['p'];
+$mysql_host = $cmd_options['h'];
 
+
+echo "Using input file: ", empty($csv_file) ? "No" : $csv_file, PHP_EOL,
+	"Create table: ", empty($table) ? "Not creating" : $table, PHP_EOL,	
+	"If dry_run: ", empty($dry) ? "No" : "Yes", PHP_EOL,
+	"MySQL DB username: ", empty($mysql_user) ? "Not specified" : $mysql_user, PHP_EOL,
+	"MySQL user password: ", empty($mysql_user_password) ? "Not specified" : $mysql_user_password, PHP_EOL,
+	"MySQL DB host: ", empty($mysql_host) ? "Not specified" : $mysql_host, PHP_EOL;
+ 
 ?>
