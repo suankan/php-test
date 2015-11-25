@@ -74,17 +74,6 @@ Dry run:
 ";
 $cmd_options->setHelp($help);
 
-print_r ($cmd_options['create_table'][0]);
-
-/*
-echo "Using input csv_file: ", $csv_file = $cmd_options['file'], PHP_EOL;
-echo "Create table: ", $create_table = $cmd_options['create_table'], PHP_EOL;  
-echo "If dry_run: ", print_r($dry_run = $cmd_options['dry_run'][0]), PHP_EOL;
-echo "MySQL DB username: ", $mysql_user = $cmd_options['u'], PHP_EOL;
-echo "MySQL user password: ", $mysql_user_password = $cmd_options['p'], PHP_EOL;
-echo "MySQL DB host: ", $mysql_host = $cmd_options['h'], PHP_EOL;
-*/
-
 $csv_file = $cmd_options['file'];
 if ($cmd_options['create_table'])
 	$create_table = 1;
