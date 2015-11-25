@@ -133,9 +133,35 @@ function read_csv($file) {
 	return $rows;
 }
 
+function correct_name($name){
+	//trim whitespaces
+	$name = trim($name);
+	//lowercase entire name first
+	$name = strtolower($name);
+	//uppercase the first letter
+	$name = ucfirst($name);
+	//if name contains single quote sign then uppercase letter next to it
+	$quote_pos = strpos($name, "'");
+	if ($quote_pos != 0 ) {
+		$name[$quote_pos + 1] = strtoupper($name[$quote_pos+1]);
+	};
+	//if name contains dash signs then uppercase letter next to it
+	$quote_pos = strpos($name, "-");
+	if ($quote_pos != 0 ) {
+		$name[$quote_pos + 1] = strtoupper($name[$quote_pos+1]);
+	};
+	//if name contains non-letter characters except of single quote and dash - cut them off??
+
+
+	return $name;
+}
+
 function validate_csv_data($file) {
-	//iterating through CSV file
-	print_r(read_csv($file));
+	$csv_data_array = read_csv($file);
+	$rec_number = count($csv_data_array);
+	$col_number = count($csv_data_array[0]);
+	$csv_data_array[4][1] = correct_name($csv_data_array[4][1]);
+	echo $csv_data_array[4][1], PHP_EOL;
 }
 
 function import_file_to_db($file, $user, $password, $host) {
@@ -165,20 +191,4 @@ elseif (isset($dry_run, $csv_file) && !isset($create_table) && !isset($mysql_use
 	die ("Unrecognized sequence of options. Please use option --help for script usage scenarios.");
 }
 
-/*
-//iterating through CSV file
-function read_csv($filename) {
-	$rows = array();
-	foreach (file("$filename", FILE_IGNORE_NEW_LINES) as $line) {
-		$rows[] = str_getcsv($line);
-	};
-	return $rows;
-}
-
-$rows_number = count(read_csv($csv_file));
-echo "Number of rows in CSV file: ", $rows_number, PHP_EOL;
-
-print_r(read_csv($csv_file));
-*/
- 
 ?>
