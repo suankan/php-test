@@ -32,7 +32,7 @@ $cmd_options->option('file')
 	->file()
 	->describedAs('Input file with CSV data to be parced');
 
-// Define flag "--create_table"
+	// Define flag "--create_table"
 $cmd_options->flag('create_table')
 	->boolean()
 	->needs('u', 'p', 'h')
@@ -74,11 +74,12 @@ Dry run:
 ";
 $cmd_options->setHelp($help);
 
+//Aligning options and flags to be either set or unset. 
 $csv_file = $cmd_options['file'];
 if ($cmd_options['create_table'])
-	$create_table = 1;
+	$create_table = 1; // otherwise it is unset
 if ($cmd_options['dry_run'])
-	$dry_run = 1;
+	$dry_run = 1; // otherwise it is unset
 $mysql_user = $cmd_options['u'];
 $mysql_user_password = $cmd_options['p'];
 $mysql_host = $cmd_options['h'];
@@ -90,7 +91,6 @@ echo "Using input csv_file: ", isset($csv_file) ? $csv_file : "No", PHP_EOL,
 	"MySQL user password: ", isset($mysql_user_password) ? $mysql_user_password : "Not specified", PHP_EOL,
 	"MySQL DB host: ", isset($mysql_host) ? $mysql_host : "Not specified", PHP_EOL, PHP_EOL;
 	
-
 function create_db_table($user, $password, $host) {
 	//open connection
 	$conn = mysqli_connect($host, $user, $password) or die(mysqli_connect_error());
