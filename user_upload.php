@@ -29,14 +29,14 @@ $cmd_options = new Commando\Command();
 
 // Define option "--file"
 $cmd_options->option('file')
-    ->file()
-    ->describedAs('Input file with CSV data to be parced');
+	->file()
+	->describedAs('Input file with CSV data to be parced');
 
 // Define flag "--create_table"
 $cmd_options->flag('create_table')
-    ->boolean()
-    ->needs('u', 'p', 'h')
-    ->describedAs('Instructs to create table in MySQL DB with name "users"');
+	->boolean()
+	->needs('u', 'p', 'h')
+	->describedAs('Instructs to create table in MySQL DB with name "users"');
 
 // Define flag "--dry_run"
 $cmd_options->flag('dry_run')
@@ -51,14 +51,14 @@ $cmd_options->option('u')
 // Define option "-p"
 $cmd_options->option('p')
 	->needs('u', 'h')
-        ->describedAs('Password of MySQL user');
+	->describedAs('Password of MySQL user');
 
 // Define option "-h"
 $cmd_options->option('h')
 	->needs('u', 'p')
-        ->describedAs('MySQL hostname or IP');
+	->describedAs('MySQL hostname or IP');
 
-// No definition for option "--help" is required because Composer already implements it
+// No definition for option "--help" because Composer already implements it
 
 $csv_file = $cmd_options['file'];
 $table = $cmd_options['create_table'] ? "users" : "";  
@@ -67,83 +67,76 @@ $mysql_user = $cmd_options['u'];
 $mysql_user_password = $cmd_options['p'];
 $mysql_host = $cmd_options['h'];
 
-
 echo "Using input file: ", empty($csv_file) ? "No" : $csv_file, PHP_EOL,
 	"Create table: ", empty($table) ? "Not creating" : $table, PHP_EOL,	
 	"If dry_run: ", empty($dry) ? "No" : "Yes", PHP_EOL,
 	"MySQL DB username: ", empty($mysql_user) ? "Not specified" : $mysql_user, PHP_EOL,
 	"MySQL user password: ", empty($mysql_user_password) ? "Not specified" : $mysql_user_password, PHP_EOL,
-	"MySQL DB host: ", empty($mysql_host) ? "Not specified" : $mysql_host, PHP_EOL;
+	"MySQL DB host: ", empty($mysql_host) ? "Not specified" : $mysql_host, PHP_EOL, PHP_EOL;
 
-//Create/Re-create table if option --create_table is specified
+//Create/re-create table if option --create_table is specified
 if (!empty($table)) {
-	//open connection
-	$conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password);
-	//check connection
-	if (!$conn) {
-		die("Connection failed: " . mysqli_connect_error() . PHP_EOL);
-	}	
-	echo "Connected successfully" . PHP_EOL;
-	//create db if it doesn't exist
-	$create_db_sql = "CREATE DATABASE IF NOT EXISTS Catalog;";
-	if (mysqli_query($conn, $create_db_sql)) {
-		echo "Database created successfully" . PHP_EOL;
-	} else {
-		echo "Error creating database: " . $mysqli_error($conn) . PHP_EOL;
-	}
-	mysqli_select_db($conn, "Catalog");	
-	// drop table users if it exists
-        if (mysqli_query($conn, "DROP TABLE IF EXISTS users")) {
-                echo "Table users exists. Dropping." . PHP_EOL;
-        } else {
-                echo "Error creating table: " . mysqli_error($conn) . PHP_EOL;
-        }
-	// create table users
-	$create_table_sql = "CREATE TABLE users (
-		firstname VARCHAR(30) NOT NULL,
-		lastname VARCHAR(30) NOT NULL,
-		email VARCHAR(50)
-	)";
-	if (mysqli_query($conn, $create_table_sql)) {
-    		echo "Table users created successfully" . PHP_EOL;
-	} else {
-		echo "Error creating table: " . mysqli_error($conn) . PHP_EOL;
-	}
-	mysqli_close();
-}
+	//check if options MySQL username, password and hostname have been provided
+	if (!($mysql_user && $mysql_user_password && $mysql_host))
+		echo "ERROR: Option --create_table selected, but MySQL username, password and hostname were not specified. Use -u, -p and -h", PHP_EOL;
+	else{
+		//Inform user of ignoring options --file and --dry_run
+		if ($csv_file || $dry) {
+			echo "WARNING: Option --create_table selected. Ignoring options --file and --dry_run". PHP_EOL;
+		}
 
-//iterating through CSV file
+		//open connection
+		$conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password) or die(mysqli_connect_error());
+		
+		//create db if it doesn't exist
+		if (mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS catalog;")) {
+			echo "Database \"catalog\" created successfully" . PHP_EOL;
+		} else {
+			echo "Error creating database \"catalog\": " . mysqli_error($conn) . PHP_EOL;
+		}
+		
+		//enter to DB
+		mysqli_select_db($conn, "Catalog");	
+		
+		// drop table users if it exists
+		if (mysqli_query($conn, "DROP TABLE IF EXISTS users")) {
+			echo "Table \"users\" exists. Dropping." . PHP_EOL;
+		} else {
+			echo "Error dropping table \"users\": " . mysqli_error($conn) . PHP_EOL;
+		}
 
-if (($handle = fopen("$csv_file", "r")) !== FALSE) {
-    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-        $num = count($data);
-        for ($c=0; $c < $num; $c++) {
-            echo trim($data[$c]) . ",";
-        }
-	echo PHP_EOL;
-    }
-    fclose($handle);
+		// create table users
+		$create_table_sql = "CREATE TABLE users (
+			firstname VARCHAR(30) NOT NULL,
+			lastname VARCHAR(30) NOT NULL,
+			email VARCHAR(50) NOT NULL
+		)";
+		if (mysqli_query($conn, $create_table_sql)) {
+			echo "Table \"users\" created successfully" . PHP_EOL;
+		} else {
+			echo "Error creating table \"users\": " . mysqli_error($conn) . PHP_EOL;
+		}
+		
+		//close DB connection
+		mysqli_close($conn);
+	}
+	die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
 }
 
 /*
-foreach (file("$csv_file") as $line) {
-	//obtaining 
-	$data[] = str_getcsv($line);
-	echo $data[0][0], PHP_EOL;
-
-        //open connection to db
-        $conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password);
-        //check connection
-        if (!$conn) {
-                die("Connection failed: " . mysqli_connect_error() . PHP_EOL);
-        }
-        echo "Connected successfully" . PHP_EOL;
-
-	//retrieve 
-	echo $firstName = ucfirst($data[0]), PHP_EOL,
-		$lastName = ucfirst($data[1]), PHP_EOL,
-		$email = strtolower($data[2]), PHP_EOL;
+//iterating through CSV file
+function read_csv($filename) {
+	$rows = array();
+	foreach (file("$filename", FILE_IGNORE_NEW_LINES) as $line) {
+		$rows[] = str_getcsv($line);
+	};
+	return $rows;
 }
+
+$rows_number = count(read_csv($csv_file));
+echo "Number of rows in CSV file: ", $rows_number, PHP_EOL;
+
+print_r(read_csv($csv_file));
 */
  
 ?>
