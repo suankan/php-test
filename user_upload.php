@@ -125,53 +125,67 @@ function create_db_table($user, $password, $host) {
 	mysqli_close($conn);
 }
 
-function read_csv($file) {
-	$rows = array();
-	foreach (file("$file", FILE_IGNORE_NEW_LINES) as $line) {
-		$rows[] = str_getcsv($line);
-	};
-	return $rows;
-}
-
-function correct_name($name){
-	//trim whitespaces
-	$name = trim($name);
-	//lowercase entire name first
-	$name = strtolower($name);
-	//uppercase the first letter
-	$name = ucfirst($name);
-	//if name contains single quote sign then uppercase letter next to it
-	$quote_pos = strpos($name, "'");
-	if ($quote_pos != 0 ) {
-		$name[$quote_pos + 1] = strtoupper($name[$quote_pos+1]);
-	};
-	//if name contains dash signs then uppercase letter next to it
-	$quote_pos = strpos($name, "-");
-	if ($quote_pos != 0 ) {
-		$name[$quote_pos + 1] = strtoupper($name[$quote_pos+1]);
-	};
-	//if name contains non-letter characters except of single quote and dash - cut them off??
-
-
+function fix_irish_surname($name){
+	$pos = strpos($name, "'");
+	if ($pos) {
+		$name[$pos+1] = strtoupper($name[$pos+1]);
+	}
 	return $name;
 }
 
-function validate_csv_data($file) {
-	$csv_data_array = read_csv($file);
-	$rec_number = count($csv_data_array);
-	$col_number = count($csv_data_array[0]);
-	$csv_data_array[4][1] = correct_name($csv_data_array[4][1]);
-	echo $csv_data_array[4][1], PHP_EOL;
+function read_validate_csv($file) {
+	$rows = array();
+	$iter = 0;
+	$invalid_emails_count = 0;
+	foreach (file("$file", FILE_IGNORE_NEW_LINES) as $line) {
+		if ( $iter === 0) {
+			$iter++;
+			continue;
+		}
+		$csv_row = str_getcsv($line);
+		//remove all whitespaces
+		$csv_row = preg_replace("/\s+/", "", $csv_row);
+		//lowercase  everything
+		$csv_row = array_map("strtolower", $csv_row);
+		//uppercase first letters in name and surname
+		$csv_row[0] = ucfirst($csv_row[0]);
+		$csv_row[1] = ucfirst($csv_row[1]);
+		//if sername contains single quote then uppercase letter next to it
+		$csv_row[1] = fix_irish_surname($csv_row[1]);
+		//remove exclamation marks from name and surname (ASSUMPTION. CASE NOT SPECIFIED IN TASK)
+		$csv_row[0] = preg_replace("/!+/", "", $csv_row[0]);
+		$csv_row[1] = preg_replace("/!+/", "", $csv_row[1]);
+		//validate emails 
+		if (preg_match("/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/", $csv_row[2]) === 0) {
+			$current_iter = $iter+1;
+			echo "WARNING: Found invalid email $csv_row[2] in CSV file, line $current_iter", PHP_EOL;
+			$invalid_emails_count++;
+		}
+		echo $iter+1, " ", implode(",", $csv_row), PHP_EOL;
+		$iter++;
+	}
+	return $invalid_emails_count;
+}
+
+function import_csv_to_db($file) {
+	
+	return True;
 }
 
 function import_file_to_db($file, $user, $password, $host) {
-	validate_csv_data($file);
-	echo "Import file to DB is done" . PHP_EOL;	
+	$invalid_emails_count = read_validate_csv($file);
+	if ($invalid_emails_count != 0) {
+		echo "Found $invalid_emails_count invalid emails. No insert will be done to DB\n";
+	} else {
+		echo "Importing CSV file to DB..." . PHP_EOL;	
+		import_csv_to_db($file) 
+	}
 }
 
 function do_dry_run($file) {
-	validate_csv_data($file);
+	$invalid_emails_count = read_validate_csv($file);
 	echo "Dry run is done" . PHP_EOL;
+	return "Found $invalid_emails_count invalid emails\n";
 }
 
 //Processing scenario --create_table, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
@@ -181,14 +195,14 @@ if (isset($create_table, $mysql_user, $mysql_user_password, $mysql_host) && !iss
 	//Exit script as required
 	die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
 } //Processing scenario --file, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
-elseif (isset($csv_file, $mysql_user, $mysql_user_password, $mysql_host) && !isset($dry_run) && !isset($create_table) ){
-	import_file_to_db($csv_file, $mysql_user, $mysql_user_password, $mysql_host);
-	die("File has been successfully imported to DB. Exiting.");
+elseif (isset($csv_file, $mysql_user, $mysql_user_password, $mysql_host) && !isset($dry_run) && !isset($create_table)) {
+		import_file_to_db($csv_file, $mysql_user, $mysql_user_password, $mysql_host);		
+		die();
 } //Processing scenario --dry_run and --file. Requiring other options to be not used to avoid ambiguity.
 elseif (isset($dry_run, $csv_file) && !isset($create_table) && !isset($mysql_user) && !isset($mysql_user_password) && !isset($mysql_host)) {
-	do_dry_run($csv_file);
+	echo do_dry_run($csv_file);
+	die();
 } else { // rtfm if any other invalid options provided	
 	die ("Unrecognized sequence of options. Please use option --help for script usage scenarios.");
 }
-
 ?>
