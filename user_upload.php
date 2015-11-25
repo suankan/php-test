@@ -178,7 +178,7 @@ function import_file_to_db($file, $user, $password, $host) {
 		echo "Found $invalid_emails_count invalid emails. No insert will be done to DB\n";
 	} else {
 		echo "Importing CSV file to DB..." . PHP_EOL;	
-		import_csv_to_db($file) 
+		import_csv_to_db($file);
 	}
 }
 
@@ -205,4 +205,5 @@ elseif (isset($dry_run, $csv_file) && !isset($create_table) && !isset($mysql_use
 } else { // rtfm if any other invalid options provided	
 	die ("Unrecognized sequence of options. Please use option --help for script usage scenarios.");
 }
+
 ?>
