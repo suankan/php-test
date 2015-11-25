@@ -133,7 +133,7 @@ function validate_options_dry_run() {
 	}
 }
 
-function create_table($user, $password, $host) {
+function create_db_table($user, $password, $host) {
 	//open connection
 	$conn = mysqli_connect($host, $user, $password) or die(mysqli_connect_error());
 	//create DB if it doesn't exist
@@ -181,11 +181,11 @@ function dry_run($dry, $file) {
 }
 
 //Processing options --create_table, -u, -p and -h
-if ($table && $mysql_user && $mysql_user_password && $mysql_host) {
+if ($create_table && $mysql_user && $mysql_user_password && $mysql_host) {
 	//check if options --create_table, -u, -p and -h are provided
 	if (validate_options_create_table()){
 		//create DB, re-create table
-		create_table($table, $mysq_user, $mysql_user_password, $mysql_hostname);
+		create_db_table($mysq_user, $mysql_user_password, $mysql_hostname);
 		
 		//Exit script as required
 		die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
