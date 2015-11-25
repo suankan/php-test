@@ -27,6 +27,23 @@ require_once 'vendor/autoload.php';
 
 $cmd_options = new Commando\Command();
 
+//Compose help message
+$help = "Usage:
+
+Creating table:
+	php user_upload.php --create_table -u <MySQL user>
+		-p <MySQL user password> -h <MySQL hostname>
+		
+Importing file:
+	php user_upload.php --file <CSV filename> -u <MySQL user> 
+		-p <MySQL user password> -h <MySQL hostname>
+		
+Dry run:
+	php user_upload.php --dru_run --file <CSV filename>
+";
+
+$cmd_options->setHelp($help);
+
 // Define option "--file"
 $cmd_options->option('file')
 	->file()
@@ -60,67 +77,134 @@ $cmd_options->option('h')
 
 // No definition for option "--help" because Composer already implements it
 
-$csv_file = $cmd_options['file'];
-$table = $cmd_options['create_table'] ? "users" : "";  
-$dry = $cmd_options['dry_run'];
+$csv_file = $cmd_options['csv_file'];
+$create_table = $cmd_options['create_table'] ? "users" : "";  
+$dry_run = $cmd_options['dry_run'];
 $mysql_user = $cmd_options['u'];
 $mysql_user_password = $cmd_options['p'];
 $mysql_host = $cmd_options['h'];
 
-echo "Using input file: ", empty($csv_file) ? "No" : $csv_file, PHP_EOL,
-	"Create table: ", empty($table) ? "Not creating" : $table, PHP_EOL,	
-	"If dry_run: ", empty($dry) ? "No" : "Yes", PHP_EOL,
+echo "Using input csv_file: ", empty($csv_file) ? "No" : $csv_file, PHP_EOL,
+	"Create table: ", empty($create_table) ? "Not creating" : $create_table, PHP_EOL,	
+	"If dry_run: ", empty($dry_run) ? "No" : "Yes", PHP_EOL,
 	"MySQL DB username: ", empty($mysql_user) ? "Not specified" : $mysql_user, PHP_EOL,
 	"MySQL user password: ", empty($mysql_user_password) ? "Not specified" : $mysql_user_password, PHP_EOL,
 	"MySQL DB host: ", empty($mysql_host) ? "Not specified" : $mysql_host, PHP_EOL, PHP_EOL;
 
-//Create/re-create table if option --create_table is specified
-if (!empty($table)) {
-	//check if options MySQL username, password and hostname have been provided
-	if (!($mysql_user && $mysql_user_password && $mysql_host))
-		echo "ERROR: Option --create_table selected, but MySQL username, password and hostname were not specified. Use -u, -p and -h", PHP_EOL;
-	else{
-		//Inform user of ignoring options --file and --dry_run
-		if ($csv_file || $dry) {
-			echo "WARNING: Option --create_table selected. Ignoring options --file and --dry_run". PHP_EOL;
-		}
-
-		//open connection
-		$conn = mysqli_connect($mysql_host, $mysql_user, $mysql_user_password) or die(mysqli_connect_error());
-		
-		//create db if it doesn't exist
-		if (mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS catalog;")) {
-			echo "Database \"catalog\" created successfully" . PHP_EOL;
-		} else {
-			echo "Error creating database \"catalog\": " . mysqli_error($conn) . PHP_EOL;
-		}
-		
-		//enter to DB
-		mysqli_select_db($conn, "Catalog");	
-		
-		// drop table users if it exists
-		if (mysqli_query($conn, "DROP TABLE IF EXISTS users")) {
-			echo "Table \"users\" exists. Dropping." . PHP_EOL;
-		} else {
-			echo "Error dropping table \"users\": " . mysqli_error($conn) . PHP_EOL;
-		}
-
-		// create table users
-		$create_table_sql = "CREATE TABLE users (
-			firstname VARCHAR(30) NOT NULL,
-			lastname VARCHAR(30) NOT NULL,
-			email VARCHAR(50) NOT NULL
-		)";
-		if (mysqli_query($conn, $create_table_sql)) {
-			echo "Table \"users\" created successfully" . PHP_EOL;
-		} else {
-			echo "Error creating table \"users\": " . mysqli_error($conn) . PHP_EOL;
-		}
-		
-		//close DB connection
-		mysqli_close($conn);
+function validate_options_create_table() {
+	//Check if some redundant options are used, like --file and --dry_run 
+	if ($csv_file || $dry_run) {
+		echo "WARNING: Option --create_table selected. Ignoring options --file and --dry_run" . PHP_EOL;
 	}
-	die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
+	//Option --create_table must be accompanied with options -u, -p and -h
+	if (!($create_table && $mysql_user && $mysql_user_password && $mysql_host)) {
+		echo "ERROR: Option --create_table must be accompanied with options -u, -p and -h, but some of them are missing.". PHP_EOL;		
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function validate_options_file() {
+	//Check if some redundant options are used, like --create_table
+	if ($create_table) {
+		echo "WARNING: Option --file selected. Ignoring option ----create_table" . PHP_EOL;
+	}
+	//Option --file must be accompanied with options -u, -p and -h
+	if (!($csv_file && $mysql_user && $mysql_user_password && $mysql_host)){
+		echo "ERROR: Option --file must be accompanied with options -u, -p and -h, but some of them are missing.". PHP_EOL;
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function validate_options_dry_run() {
+	//Check if some redundant options are used, like --create_table, -u, -p and -h
+	if ($create_table || $mysql_user || $mysql_user_password || $mysql_host) {
+		echo "WARNING: Option --dry_run was selected. Ignoring options --create_table, -u, -p, -h" . PHP_EOL;
+	}
+	// This option must be accompanied with --file
+	if (!($dry_run && $csv_file)) {
+		echo "ERROR: Option --dry_run must be accompanied with option --file, but it is missing.". PHP_EOL;		
+		return false;
+	} else {
+		return true;
+	}
+}
+
+function create_table($user, $password, $host) {
+	//open connection
+	$conn = mysqli_connect($host, $user, $password) or die(mysqli_connect_error());
+	//create DB if it doesn't exist
+	if (mysqli_query($conn, "CREATE DATABASE IF NOT EXISTS `catalog`;")) {
+		echo "Database \"catalog\" created successfully" . PHP_EOL;
+	} else {
+		echo "Error creating database \"catalog\": " . mysqli_error($conn) . PHP_EOL;
+	}
+	//enter to DB
+	mysqli_select_db($conn, "Catalog");	
+	// drop table users if it exists
+	if (mysqli_query($conn, "DROP TABLE IF EXISTS `users`")) {
+		echo "Table \"users\" exists. Dropping." . PHP_EOL;
+	} else {
+		echo "Error dropping table \"users\": " . mysqli_error($conn) . PHP_EOL;
+	}
+	// create table users
+	$create_table_sql = "CREATE TABLE `users` (
+		name VARCHAR(30) NOT NULL,
+		surname VARCHAR(30) NOT NULL,
+		email VARCHAR(50) NOT NULL UNIQUE, 
+		INDEX index_email (email)
+		)	ENGINE=InnoDB DEFAULT CHARSET=utf8;
+		";
+	if (mysqli_query($conn, $create_table_sql)) {
+		echo "Table \"users\" created successfully" . PHP_EOL;
+	} else {
+		echo "Error creating table \"users\": " . mysqli_error($conn) . PHP_EOL;
+	}
+	//close DB connection
+	mysqli_close($conn);
+}
+
+function validate_file($file) {
+	
+}
+
+function import_file_to_db($file, $user, $password, $host) {
+	//echo "Import file to DB is done" . PHP_EOL;
+	
+}
+
+function dry_run($dry, $file) {
+	echo "Dry run is done" . PHP_EOL;
+}
+
+//Processing options --create_table, -u, -p and -h
+if ($table && $mysql_user && $mysql_user_password && $mysql_host) {
+	//check if options --create_table, -u, -p and -h are provided
+	if (validate_options_create_table()){
+		//create DB, re-create table
+		create_table($table, $mysq_user, $mysql_user_password, $mysql_hostname);
+		
+		//Exit script as required
+		die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
+	}
+} 
+//Processing options --file, -u, -p and -h
+elseif ($file && $mysql_user && $mysql_user_password && $mysql_host){
+		if (validate_options_file()) {
+			import_file_to_db($file, $mysql_user, $mysql_user_password, $mysql_host);
+		}
+}
+//Processing options --dry_run and --file
+elseif ($dry && $file) {
+	if (validate_options_dry_run()){
+		dry_run($dry, $file);
+	}
+} else {
+	// rtfm if any other invalid options provided
+	die ("Cannot recognize options, please use --help");
 }
 
 /*
