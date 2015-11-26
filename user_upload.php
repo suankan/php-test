@@ -65,12 +65,16 @@ Creating table:
 	php user_upload.php --create_table -u <MySQL user>
 		-p <MySQL user password> -h <MySQL hostname>
 		
+Dry run, check CSV content and exit without importing to DB:
+	php user_upload.php --dru_run --file <CSV filename>
+
 Importing file:
 	php user_upload.php --file <CSV filename> -u <MySQL user> 
 		-p <MySQL user password> -h <MySQL hostname>
+
+If invalid emails are found in CSV then no DB insert will be done.
 		
-Dry run:
-	php user_upload.php --dru_run --file <CSV filename>
+Only above described sets of options could be used. E.g. you cannot use --create_table together with --dry_run  
 ";
 $cmd_options->setHelp($help);
 
@@ -84,7 +88,8 @@ $mysql_user = $cmd_options['u'];
 $mysql_user_password = $cmd_options['p'];
 $mysql_host = $cmd_options['h'];
 
-echo "Using input csv_file: ", isset($csv_file) ? $csv_file : "No", PHP_EOL,
+echo "USER INPUT SUMMARY:\n", 
+	"Using input csv_file: ", isset($csv_file) ? $csv_file : "No", PHP_EOL,
 	"Create table: ", isset($create_table) ? "Yes" : "No", PHP_EOL,	
 	"If dry_run: ", isset($dry_run) ? "Yes" : "No", PHP_EOL,
 	"MySQL DB username: ", isset($mysql_user) ? $mysql_user : "Not specified", PHP_EOL,
@@ -92,6 +97,7 @@ echo "Using input csv_file: ", isset($csv_file) ? $csv_file : "No", PHP_EOL,
 	"MySQL DB host: ", isset($mysql_host) ? $mysql_host : "Not specified", PHP_EOL, PHP_EOL;
 	
 function create_db_table($user, $password, $host) {
+	echo "DATABASE OPERATIONS LOG:\n";
 	//open connection
 	$conn = mysqli_connect($host, $user, $password) or die(mysqli_connect_error());
 	//create DB if it doesn't exist
@@ -134,14 +140,29 @@ function fix_irish_surname($name){
 }
 
 function read_validate_csv($file) {
-	$rows = array();
+/* 
+this function iterates through CSV file and does corrections:
+- Set only first letters uppercased in names and surnames
+- Correctly uppercase Irish names like O'Brien
+- Lowercase all emails and validates them against regex "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+Returned data:
+If no invalid emails are found it returns 2 dimentional array with corrected CSV data
+If invalid emails are found it returns number of invalid emails as integer
+*/
+	echo "VALIDATING CSV FILE:\n";
+	//set iterations counter to know which line has invalid email
 	$iter = 0;
 	$invalid_emails_count = 0;
+	//final 2dim array
+	$csv_data[] = array();
+	//traversing through CSV file line-by-line
 	foreach (file("$file", FILE_IGNORE_NEW_LINES) as $line) {
+		//skip the first line with CSV column names
 		if ( $iter === 0) {
 			$iter++;
 			continue;
 		}
+		//convert line to array
 		$csv_row = str_getcsv($line);
 		//remove all whitespaces
 		$csv_row = preg_replace("/\s+/", "", $csv_row);
@@ -155,37 +176,62 @@ function read_validate_csv($file) {
 		//remove exclamation marks from name and surname (ASSUMPTION. CASE NOT SPECIFIED IN TASK)
 		$csv_row[0] = preg_replace("/!+/", "", $csv_row[0]);
 		$csv_row[1] = preg_replace("/!+/", "", $csv_row[1]);
-		//validate emails 
+		//validating emails 
 		if (preg_match("/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/", $csv_row[2]) === 0) {
 			$current_iter = $iter+1;
 			echo "WARNING: Found invalid email $csv_row[2] in CSV file, line $current_iter", PHP_EOL;
 			$invalid_emails_count++;
 		}
+		//displaying corrected data to user
 		echo $iter+1, " ", implode(",", $csv_row), PHP_EOL;
+		//adding each CSV line (as array) to 2dim array
+		array_push($csv_data, $csv_row);
 		$iter++;
 	}
-	return $invalid_emails_count;
-}
-
-function import_csv_to_db($file) {
-	
-	return True;
-}
-
-function import_file_to_db($file, $user, $password, $host) {
-	$invalid_emails_count = read_validate_csv($file);
-	if ($invalid_emails_count != 0) {
-		echo "Found $invalid_emails_count invalid emails. No insert will be done to DB\n";
-	} else {
-		echo "Importing CSV file to DB..." . PHP_EOL;	
-		import_csv_to_db($file);
+	//cut off the first element of array as it contains CSV column names
+	array_shift ($csv_data);
+	//returning corrected array if there are no invalid emails
+	if ($invalid_emails_count === 0) {
+		echo "No invalid emails\n\n";
+		return $csv_data;
+	} else { // returning number of invalid emails if there some of them found
+		echo "Found $invalid_emails_count invalid emails\n\n";
+		return $invalid_emails_count;
 	}
 }
 
-function do_dry_run($file) {
-	$invalid_emails_count = read_validate_csv($file);
-	echo "Dry run is done" . PHP_EOL;
-	return "Found $invalid_emails_count invalid emails\n";
+function import_csv_to_db($file, $user, $password, $host) {
+	//Do validation and correction of CSV 
+	$validated_csv = read_validate_csv($file);
+	//Function read_validate_csv($file) returns integer if invalid emails are found
+	if (gettype($validated_csv) === "integer") {
+		echo "Found invalid emails. Not inserting this data to DB.\n";
+	}
+	//And it returns 2dim array with corrected CSV data if all emails are correct. Inserting data to DB.
+ 	elseif (gettype($validated_csv) === "array") {
+		//print_r($validated_csv);
+		//open DB connection
+		$conn = mysqli_connect($host, $user, $password, "catalog") or die(mysqli_connect_error());
+		//access each row in array, escape elements of the row and insert in DB
+		echo "DATABASE OPERATIONS LOG:\n";
+		foreach ($validated_csv as $row) {
+			//echo implode(",", $row), PHP_EOL;
+			//escape input data
+			$name = mysqli_real_escape_string($conn, $row[0]);
+			$surname = mysqli_real_escape_string($conn, $row[1]);
+			$email = mysqli_real_escape_string($conn, $row[2]);
+			//compose query
+			$sql_query = "INSERT INTO `users` (`name`, `surname`, `email`) 
+				VALUES ('$name', '$surname', '$email');
+			";
+			//do INSERT
+			if (mysqli_query($conn, $sql_query)) {
+				echo "Successfull INSERT: $name,$surname,$email\n";
+			} else {
+				echo "ERROR: INSERT ERROR: " . mysqli_error($conn) . PHP_EOL;
+			}
+		}
+	}
 }
 
 //Processing scenario --create_table, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
@@ -193,14 +239,16 @@ if (isset($create_table, $mysql_user, $mysql_user_password, $mysql_host) && !iss
 	//create DB and re-create table
 	create_db_table($mysql_user, $mysql_user_password, $mysql_hostname);
 	//Exit script as required
-	die("Database \"catalog\" and table \"users\" are ready. Please proceed to loading CSV data.");
+	die("Please proceed to validating and loading CSV data.\n");
 } //Processing scenario --file, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
 elseif (isset($csv_file, $mysql_user, $mysql_user_password, $mysql_host) && !isset($dry_run) && !isset($create_table)) {
-		import_file_to_db($csv_file, $mysql_user, $mysql_user_password, $mysql_host);		
-		die();
+	//Function import_csv_to_db does this scenario
+	import_csv_to_db($csv_file, $mysql_user, $mysql_user_password, $mysql_host);		
+	die();
 } //Processing scenario --dry_run and --file. Requiring other options to be not used to avoid ambiguity.
 elseif (isset($dry_run, $csv_file) && !isset($create_table) && !isset($mysql_user) && !isset($mysql_user_password) && !isset($mysql_host)) {
-	echo do_dry_run($csv_file);
+	//function read_validate_csv does this scenario
+	read_validate_csv($csv_file);
 	die();
 } else { // rtfm if any other invalid options provided	
 	die ("Unrecognized sequence of options. Please use option --help for script usage scenarios.");
