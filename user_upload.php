@@ -237,7 +237,7 @@ function import_csv_to_db($file, $user, $password, $host) {
 //Processing scenario --create_table, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
 if (isset($create_table, $mysql_user, $mysql_user_password, $mysql_host) && !isset($dry_run) && !isset($file)) {
 	//create DB and re-create table
-	create_db_table($mysql_user, $mysql_user_password, $mysql_hostname);
+	create_db_table($mysql_user, $mysql_user_password, $mysql_host);
 	//Exit script as required
 	die("Please proceed to validating and loading CSV data.\n");
 } //Processing scenario --file, -u, -p, -h. Requiring other options to be not used to avoid ambiguity.
